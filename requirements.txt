@@ -1,0 +1,7 @@
+youtube-transcript-api>=1.0
+faster-whisper>=1.0
+yt-dlp>=2024.0
+chromadb>=0.5
+fastembed>=0.3
+pyyaml>=6.0
+pytest>=8.0

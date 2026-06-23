@@ -1,0 +1,17 @@
+kb_repo: /path/to/your/knowledge-base    # local clone of your knowledge-base git repo
+env_file: ""                             # optional: path to a file with OPENROUTER_API_KEY=...; empty = use the environment variable
+distill:
+  engine: openrouter            # openrouter | local | self
+  openrouter_models:
+    - qwen/qwen3-next-80b-a3b-instruct:free
+    - qwen/qwen3-30b-a3b-instruct-2507
+  local_model: gpt-oss-20b      # via ollama, used when engine=local
+whisper:
+  model: medium                 # medium | large-v3 | small
+  compute_type: int8
+vector:
+  enabled: true
+  path: ~/.cache/youtube-summary-skill/chroma
+  embed_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+frames:
+  max_per_video: 3
