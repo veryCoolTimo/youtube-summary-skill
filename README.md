@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.png" alt="youtube-summary — turn YouTube links into a searchable knowledge base" width="100%">
+  <img src="assets/hero.webp" alt="youtube-summary — turn YouTube links into a searchable knowledge base" width="100%">
 </p>
 
 # YouTube Knowledge Base Skill for Claude Code
