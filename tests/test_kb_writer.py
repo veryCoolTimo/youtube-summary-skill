@@ -95,6 +95,11 @@ def test_git_commit_clean_when_no_changes(tmp_path):
     assert kb_writer.git_commit(str(repo), "m", push=False) == "clean"
 
 
+def test_git_commit_disabled_when_kb_is_not_a_repo(tmp_path):
+    (tmp_path / "f.md").write_text("x")
+    assert kb_writer.git_commit(str(tmp_path), "m", push=True) == "disabled"
+
+
 def test_git_commit_reports_push_failure(tmp_path):
     repo = _git_repo(tmp_path)
     (repo / "f.md").write_text("x")

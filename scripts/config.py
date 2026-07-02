@@ -18,9 +18,13 @@ def env(key: str, env_file: str | None = None) -> str:
 
 def validate(cfg: dict) -> dict:
     kb = os.path.expanduser(str(cfg.get("kb_repo") or ""))
-    if not kb or kb == "/path/to/your/knowledge-base":
-        raise SystemExit("config error: set kb_repo in config.yaml (path to your local knowledge-base git clone)")
-    if not Path(kb).is_dir():
+    if kb == "/path/to/your/knowledge-base":
+        raise SystemExit("config error: kb_repo still has the placeholder value — "
+                         "set a real path, or leave it empty to use ./knowledge-base next to the skill")
+    if not kb:
+        kb = str(ROOT / "knowledge-base")
+        Path(kb).mkdir(exist_ok=True)
+    elif not Path(kb).is_dir():
         raise SystemExit(f"config error: kb_repo does not exist: {kb}")
     cfg["kb_repo"] = kb
     return cfg

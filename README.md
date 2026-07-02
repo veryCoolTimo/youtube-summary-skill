@@ -11,13 +11,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/veryCoolTimo/youtube-summary-skill/pulls)
 
-A skill that turns YouTube links into a structured, searchable knowledge base. Share a link with Claude and it grabs the captions (or transcribes locally with Whisper), distills a structured card with an LLM, files it into your topical taxonomy, commits it to git, and indexes it for retrieval. Ask about your saved videos later and Claude answers from the cards — with timecoded deep-links and screenshots. No coding required.
+A skill that turns YouTube links into a structured, searchable knowledge base. Share a link with Claude and it grabs the captions (or transcribes locally with Whisper), distills a structured card with an LLM, files it into your topical taxonomy, indexes it for retrieval — and, if your knowledge base is a git repo, commits and pushes it. Ask about your saved videos later and Claude answers from the cards — with timecoded deep-links and screenshots. No coding required.
 
 The mechanical pipeline is deterministic (plain Python scripts). The agent only chooses the engine and reads results, so there is no drift and no duplicates: re-sending a link never creates a second card.
 
 ## Install
 
-**Prerequisites:** Python 3.11+, `ffmpeg`, `git`, and Node.js on `PATH` (yt-dlp uses it to solve YouTube's JS challenges). For the default distill engine you need an [OpenRouter](https://openrouter.ai/) API key; for the fully local engine, a running [ollama](https://ollama.com/). You also need a separate git repository for the knowledge base itself (your notes live there, not in this repo).
+**Prerequisites:** Python 3.11+, `ffmpeg`, and Node.js on `PATH` (yt-dlp uses it to solve YouTube's JS challenges). For the default distill engine you need an [OpenRouter](https://openrouter.ai/) API key; for the fully local engine, a running [ollama](https://ollama.com/).
 
 ```bash
 # 1. clone the skill
@@ -28,14 +28,16 @@ cd youtube-summary-skill
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
-# 3. configure
-cp config.example.yaml config.yaml   # set kb_repo (path to your notes repo) and, if needed, models
+# 3. configure (optional — works out of the box)
+cp config.example.yaml config.yaml
 
 # 4. register as a Claude Code skill
 ln -s "$(pwd)" ~/.claude/skills/youtube-summary
 ```
 
 Restart Claude Code. The skill loads automatically whenever you share a YouTube link.
+
+By default cards land in a plain `knowledge-base/` folder next to the skill — no git required. Want your notes versioned and synced? Point `kb_repo` in `config.yaml` at a git clone (or just `git init` the default folder): every ingest batch then becomes a commit and a push, automatically.
 
 ## What you can do
 
@@ -98,7 +100,7 @@ Everything in the card — the LLM-written text and the section labels — follo
 - **Pluggable distill engine** — cloud (OpenRouter), fully local (ollama), or the agent itself
 - **Hybrid retrieval** — vector search (chromadb + multilingual embeddings) merged with keyword search over the cards, so exact terms like "MCP" always hit
 - **Screenshots** — frames captured at the moments the video actually shows something on screen, embedded into the card
-- **One commit per batch** — N links become one git commit and one push, with the push result reported honestly
+- **One commit per batch** — when the KB folder is a git repo, N links become one commit and one push, with the push result reported honestly; plain folders skip git entirely
 
 ## Distill engines
 
@@ -116,7 +118,7 @@ All options live in `config.yaml` (git-ignored, per machine):
 
 | Key | What it does |
 |---|---|
-| `kb_repo` | path to your knowledge-base git clone (required) |
+| `kb_repo` | where cards live; empty = `knowledge-base/` next to the skill; point at a git clone to enable commit & push |
 | `env_file` | optional file with `OPENROUTER_API_KEY=...`; empty = read the environment |
 | `distill.engine` / `*_models` | engine and model list (first that answers wins) |
 | `distill.language` | language the cards are written in (`ru` by default) |
@@ -129,7 +131,8 @@ All options live in `config.yaml` (git-ignored, per machine):
 
 | Problem | Fix |
 |---|---|
-| `config error: set kb_repo` | point `kb_repo` in `config.yaml` at your notes repo clone |
+| `config error: kb_repo still has the placeholder` | set a real path, or leave `kb_repo` empty to use the local default folder |
+| final line says `"git": "disabled"` | the KB folder isn't a git repo — that's the no-git default; `git init` it (or point `kb_repo` at a clone) to turn on versioning |
 | every video fails with "no transcript" | check Node.js is installed — yt-dlp needs it for YouTube's JS challenges |
 | search returns nothing on a new machine | rebuild the index: `.venv/bin/python -m scripts.reindex --config config.yaml` |
 | final line says `"git": "push_failed"` | the card is committed locally; check the notes repo's remote/auth and `git push` manually |

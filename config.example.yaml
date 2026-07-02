@@ -1,4 +1,5 @@
-kb_repo: /path/to/your/knowledge-base    # local clone of your knowledge-base git repo
+kb_repo: ""                              # empty = ./knowledge-base next to the skill (plain folder, no git);
+                                         # or a path to your knowledge-base git clone — then cards are committed & pushed
 env_file: ""                             # optional: path to a file with OPENROUTER_API_KEY=...; empty = use the environment variable
 distill:
   engine: openrouter            # openrouter | local | self

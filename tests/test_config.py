@@ -1,4 +1,5 @@
 import pytest
+import scripts.config as config_module
 from scripts.config import env, load_config, validate
 
 
@@ -35,3 +36,11 @@ def test_validate_expands_home(tmp_path, monkeypatch):
     cfg = {"kb_repo": "~/kb"}
     assert validate(cfg) is cfg
     assert cfg["kb_repo"] == str(tmp_path / "kb")
+
+
+def test_validate_empty_kb_repo_defaults_to_local_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_module, "ROOT", tmp_path)
+    cfg = {"kb_repo": ""}
+    validate(cfg)
+    assert cfg["kb_repo"] == str(tmp_path / "knowledge-base")
+    assert (tmp_path / "knowledge-base").is_dir()

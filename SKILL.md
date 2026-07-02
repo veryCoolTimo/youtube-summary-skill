@@ -28,7 +28,7 @@ cd ~/.claude/skills/youtube-summary && .venv/bin/python -m scripts.yt_core "<url
   - `refiled` — an existing card was moved to the requested category.
   - `need_card` — engine=self only, see protocol below.
   - `failed` — report `reason` to the user (this includes a typo'd `--category`: the pipeline refuses rather than guessing).
-- `git` in the final line: `pushed` is full success; `committed` = saved locally, push disabled (`--no-push`); `clean` = nothing changed (e.g. `--force` produced identical content) — fine, not an error; `push_failed` = committed locally but not pushed — tell the user; `failed` = the commit itself failed; `skipped` = nothing was saved so no commit was attempted.
+- `git` in the final line: `pushed` is full success; `committed` = saved locally, push disabled (`--no-push`); `clean` = nothing changed (e.g. `--force` produced identical content) — fine, not an error; `push_failed` = committed locally but not pushed — tell the user; `failed` = the commit itself failed; `skipped` = nothing was saved so no commit was attempted; `disabled` = the KB folder is a plain directory (default no-git setup) — normal, but if the user asks about syncing/versioning, offer to `git init` it.
 - If something landed in `<top>/_inbox` (no taxonomy match), say so and offer to add a subfolder to `taxonomy.yaml`.
 
 ### engine=self protocol (you are the summarizer)
@@ -55,4 +55,4 @@ Never answer from memory. Follow every step:
   `.venv/bin/python -m scripts.reindex --config config.yaml`
 
 ## Config & secrets
-`config.yaml` (gitignored, per-machine) sets `kb_repo`, distill engine/models and card language, caption language priority, Whisper model, vector store, embedder. `OPENROUTER_API_KEY` comes from `env_file` or the environment. See `README.md` for setup.
+`config.yaml` (gitignored, per-machine) sets `kb_repo` (empty = `knowledge-base/` folder next to the skill, no git; a git clone path = auto commit+push), distill engine/models and card language, caption language priority, Whisper model, vector store, embedder. `OPENROUTER_API_KEY` comes from `env_file` or the environment. See `README.md` for setup.

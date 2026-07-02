@@ -130,7 +130,9 @@ def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str, lang="
 
 
 def git_commit(kb_repo, msg, push=True) -> str:
-    """Commit all KB changes. Returns: pushed | committed | clean | push_failed | failed."""
+    """Commit all KB changes. Returns: pushed | committed | clean | push_failed | failed | disabled."""
+    if not (Path(kb_repo) / ".git").exists():
+        return "disabled"  # plain local folder — versioning off until the user runs git init
     try:
         subprocess.run(["git", "-C", kb_repo, "add", "-A"], check=True, capture_output=True, timeout=30)
         st = subprocess.run(["git", "-C", kb_repo, "status", "--porcelain"],
