@@ -2,26 +2,38 @@ import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 from .idutil import slug, fmt_ts, yt_link
 
-VERDICT_EMOJI = {"watch_full": "✅ смотреть целиком", "digest_enough": "📄 хватит выжимки", "skip": "⏭ скип"}
+LABELS = {
+    "ru": {"verdict": {"watch_full": "✅ смотреть целиком", "digest_enough": "📄 хватит выжимки", "skip": "⏭ скип"},
+           "takeaways": "💡 Главное:", "applicable": "🛠 Применимое:",
+           "on_screen": "📸 Показывают на экране:", "screenshots": "## 📸 Скрины"},
+    "en": {"verdict": {"watch_full": "✅ watch in full", "digest_enough": "📄 digest is enough", "skip": "⏭ skip"},
+           "takeaways": "💡 Key points:", "applicable": "🛠 Try this:",
+           "on_screen": "📸 Shown on screen:", "screenshots": "## 📸 Screenshots"},
+}
 
 
-def build_message(meta: dict, card: dict, url: str) -> str:
+def _labels(lang: str) -> dict:
+    return LABELS["ru"] if str(lang) == "ru" else LABELS["en"]
+
+
+def build_message(meta: dict, card: dict, url: str, lang: str = "ru") -> str:
+    lbl = _labels(lang)
     out = [f"🎬 {meta.get('title') or 'YouTube'}",
            f"   {meta.get('channel') or '?'} · ⏱ {fmt_ts(meta['duration']) if meta.get('duration') else '?'}",
-           f"🧭 {VERDICT_EMOJI.get(card.get('verdict'), '')} — {card.get('verdict_ru','')}"]
+           f"🧭 {lbl['verdict'].get(card.get('verdict'), '')} — {card.get('verdict_ru','')}"]
     if card.get("summary"):
         out.append(f"\n{card['summary']}")
     if card.get("takeaways"):
-        out.append("\n💡 Главное:")
+        out.append("\n" + lbl["takeaways"])
         for t in card["takeaways"]:
             ts = t.get("ts")
             has = isinstance(ts, (int, float))
             out.append(f"  • {t.get('point','')}{(' ['+fmt_ts(ts)+']') if has else ''}{(' → '+yt_link(url,ts)) if has else ''}")
     if card.get("applicable"):
-        out.append("\n🛠 Применимое:")
+        out.append("\n" + lbl["applicable"])
         out += [f"  • {a}" for a in card["applicable"]]
     if card.get("visual_moments"):
-        out.append("\n📸 Показывают на экране:")
+        out.append("\n" + lbl["on_screen"])
         for v in card["visual_moments"]:
             ts = v.get("ts")
             out.append(f"  • [{fmt_ts(ts)}] {v.get('why','')} → {yt_link(url, ts)}")
@@ -80,7 +92,7 @@ def existing_frames(kb_repo: str, vid: str, card: dict):
     return out
 
 
-def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str:
+def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str, lang="ru") -> str:
     sub_dir = Path(kb_repo) / top / sub
     sub_dir.mkdir(parents=True, exist_ok=True)
     rel = f"{top}/{sub}/{date_str}-{slug(meta.get('title') or vid)}.md"
@@ -96,7 +108,7 @@ def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str
           f"url: {url}\nvideo_id: {vid}\ndate: {date_str}\n"
           f"verdict: {card.get('verdict','')}\ntop: {top}\nsub: {sub}\n"
           f"theme: {json.dumps(card.get('theme',''), ensure_ascii=False)}\n---\n\n")
-    body = build_message(meta, card, url)
+    body = build_message(meta, card, url, lang)
     shots = []
     if frames:
         mdir = Path(kb_repo) / "media" / vid
@@ -110,7 +122,7 @@ def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str
             except Exception:
                 pass
     if shots:
-        body += "\n\n## 📸 Скрины\n\n" + "\n\n".join(shots)
+        body += "\n\n" + _labels(lang)["screenshots"] + "\n\n" + "\n\n".join(shots)
     fpath.write_text(fm + body + "\n", encoding="utf-8")
     upsert_index(kb_repo, {"date": date_str, "url": url, "vid": vid, "top": top, "sub": sub,
                            "meta": meta, "card": card, "file": rel})

@@ -36,7 +36,8 @@ def migrate(cfg, key, old_index_path, today):
             top, sub = classify.fallback(tax)
         frames = kb_writer.existing_frames(kb, vid, card)
         date = (r.get("date") or today)
-        kb_writer.write_card(kb, meta, card, url, vid, top, sub, frames, date)
+        kb_writer.write_card(kb, meta, card, url, vid, top, sub, frames, date,
+                             lang=cfg["distill"].get("language", "ru"))
         try:
             vectorize.index_card(cfg, meta, card, vid)
         except Exception as e:

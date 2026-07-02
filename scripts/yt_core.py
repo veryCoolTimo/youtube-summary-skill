@@ -62,7 +62,8 @@ def _refile(cfg, entry, override, today) -> dict:
     url = entry.get("url", f"https://youtu.be/{vid}")
     fr = kb_writer.existing_frames(cfg["kb_repo"], vid, card)
     rel = kb_writer.write_card(cfg["kb_repo"], meta, card, url, vid, top, sub, fr,
-                               entry.get("date") or today)
+                               entry.get("date") or today,
+                               lang=cfg["distill"].get("language", "ru"))
     vectorize.index_card(cfg, meta, card, vid)
     return {"status": "refiled", "vid": vid, "file": rel, "top": top, "sub": sub,
             "title": meta.get("title")}
@@ -124,7 +125,7 @@ def process_video(url, cfg, key, override=None, self_fn=None, today=None, force=
     if card.get("visual_moments"):
         fdir = tempfile.mkdtemp(prefix="ytf_")
         fr = frames.grab_visual_frames(url, card, fdir, cfg.get("frames", {}).get("max_per_video", 3))
-    rel = kb_writer.write_card(cfg["kb_repo"], meta, card, url, vid, top, sub, fr, today)
+    rel = kb_writer.write_card(cfg["kb_repo"], meta, card, url, vid, top, sub, fr, today, lang=lang)
     if fdir:
         shutil.rmtree(fdir, ignore_errors=True)
     vectorize.index_card(cfg, meta, card, vid)

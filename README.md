@@ -76,19 +76,19 @@ sub: ai-agents
 
 🎬 Building MCP Servers That Don't Suck
    Dev Talks · ⏱ 24:10
-🧭 📄 хватит выжимки — смотреть не обязательно
+🧭 📄 digest is enough — no need to watch it all
 
-Автор разбирает типичные ошибки при проектировании MCP-серверов...
+The author walks through the usual mistakes people make when designing MCP servers...
 
-💡 Главное:
-  • Ресурсы вместо тулов для read-only данных [3:42] → https://youtu.be/VIDEO_ID?t=222
-  • Схемы аргументов должны быть плоскими [11:05] → https://youtu.be/VIDEO_ID?t=665
+💡 Key points:
+  • Use resources instead of tools for read-only data [3:42] → https://youtu.be/VIDEO_ID?t=222
+  • Keep argument schemas flat [11:05] → https://youtu.be/VIDEO_ID?t=665
 
-📸 Скрины
-![Демо инспектора](../../media/VIDEO_ID/665.jpg)
+📸 Screenshots
+![Inspector demo](../../media/VIDEO_ID/665.jpg)
 ```
 
-Cards are written in Russian by default — set `distill.language` in `config.yaml` to change the language of the LLM-written text (section labels like «Главное» stay Russian for now).
+Everything in the card — the LLM-written text and the section labels — follows `distill.language` in `config.yaml` (`ru` by default; the example above is `language: en`).
 
 ## Features
 

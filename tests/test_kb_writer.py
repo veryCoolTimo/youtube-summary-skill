@@ -39,6 +39,29 @@ def test_write_card_idempotent_path(tmp_path):
     assert len(lines) == 1
 
 
+def test_build_message_english_labels():
+    msg = kb_writer.build_message(META, CARD, "https://youtu.be/AAAAAAAAAAA", lang="en")
+    assert "Key points" in msg and "watch in full" not in msg  # verdict is digest_enough
+    assert "Главное" not in msg and "Применимое" not in msg
+
+
+def test_build_message_defaults_to_russian():
+    msg = kb_writer.build_message(META, CARD, "https://youtu.be/AAAAAAAAAAA")
+    assert "Главное" in msg
+
+
+def test_write_card_english_screenshots_section(tmp_path):
+    kb = str(tmp_path)
+    (Path(kb) / ".git").mkdir()
+    src = Path(kb) / "src.jpg"
+    src.write_bytes(b"jpg")
+    card = {**CARD, "visual_moments": [{"ts": 5, "why": "demo"}]}
+    rel = kb_writer.write_card(kb, META, card, "https://youtu.be/AAAAAAAAAAA", "AAAAAAAAAAA",
+                               "skills", "frontend", [(5, "demo", str(src))], "2026-06-23", lang="en")
+    text = (Path(kb) / rel).read_text(encoding="utf-8")
+    assert "Screenshots" in text and "Скрины" not in text
+
+
 def test_index_entry_returns_full_row(tmp_path):
     kb = str(tmp_path)
     kb_writer.upsert_index(kb, {"vid": "AAAAAAAAAAA", "file": "skills/x/y.md", "meta": META,
