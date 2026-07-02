@@ -1,4 +1,4 @@
-import json, os, shutil, subprocess, sys
+import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 from .idutil import slug, fmt_ts, yt_link
 
@@ -30,34 +30,54 @@ def build_message(meta: dict, card: dict, url: str) -> str:
     return "\n".join(out)
 
 
+def iter_index(kb_repo: str):
+    """Yield parsed cards.jsonl entries, skipping corrupt lines instead of crashing."""
+    idx = Path(kb_repo) / "cards.jsonl"
+    if not idx.exists():
+        return
+    for l in idx.read_text(encoding="utf-8").splitlines():
+        if not l.strip():
+            continue
+        try:
+            yield json.loads(l)
+        except Exception:
+            sys.stderr.write("[cards.jsonl: skipped corrupt line]\n")
+
+
 def upsert_index(kb_repo: str, entry: dict) -> None:
     idx = Path(kb_repo) / "cards.jsonl"
-    rows = []
-    if idx.exists():
-        for l in idx.read_text(encoding="utf-8").splitlines():
-            if not l.strip():
-                continue
-            try:
-                if json.loads(l).get("vid") != entry["vid"]:
-                    rows.append(l)
-            except Exception:
-                rows.append(l)
-    rows.append(json.dumps(entry, ensure_ascii=False))
-    idx.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    rows = [e for e in iter_index(kb_repo) if e.get("vid") != entry["vid"]]
+    rows.append(entry)
+    tmp = idx.with_name("cards.jsonl.tmp")
+    tmp.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8")
+    os.replace(tmp, idx)
+
+
+def index_entry(kb_repo: str, vid: str):
+    for j in iter_index(kb_repo):
+        if j.get("vid") == vid:
+            return j
+    return None
 
 
 def _existing_file_for_vid(kb_repo: str, vid: str):
-    idx = Path(kb_repo) / "cards.jsonl"
-    if not idx.exists():
-        return None
-    for l in idx.read_text(encoding="utf-8").splitlines():
-        try:
-            j = json.loads(l)
-            if j.get("vid") == vid:
-                return j.get("file")
-        except Exception:
+    e = index_entry(kb_repo, vid)
+    return e.get("file") if e else None
+
+
+def existing_frames(kb_repo: str, vid: str, card: dict):
+    """Rebuild (ts, why, path) from media files already in the KB — for refile/migrate."""
+    out = []
+    for vm in card.get("visual_moments") or []:
+        ts = vm.get("ts")
+        if not isinstance(ts, (int, float)):
             continue
-    return None
+        for base in (Path(kb_repo) / "media" / vid, Path(kb_repo) / "youtube" / "media" / vid):
+            p = base / f"{int(ts)}.jpg"
+            if p.exists():
+                out.append((int(ts), vm.get("why", ""), str(p)))
+                break
+    return out
 
 
 def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str:
@@ -84,7 +104,8 @@ def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str
         for ts, why, path in frames:
             dst = mdir / f"{ts}.jpg"
             try:
-                shutil.copy(path, dst)
+                if Path(path).resolve() != dst.resolve():
+                    shutil.copy(path, dst)
                 shots.append(f"![{why}]({os.path.relpath(dst, sub_dir)})\n*[{fmt_ts(ts)}] {why}*")
             except Exception:
                 pass
@@ -97,12 +118,24 @@ def write_card(kb_repo, meta, card, url, vid, top, sub, frames, date_str) -> str
 
 
 def git_commit(kb_repo, msg, push=True) -> str:
+    """Commit all KB changes. Returns: pushed | committed | clean | push_failed | failed."""
     try:
         subprocess.run(["git", "-C", kb_repo, "add", "-A"], check=True, capture_output=True, timeout=30)
+        st = subprocess.run(["git", "-C", kb_repo, "status", "--porcelain"],
+                            capture_output=True, text=True, timeout=30)
+        if not st.stdout.strip():
+            return "clean"
         subprocess.run(["git", "-C", kb_repo, "commit", "-q", "-m", msg], check=True, capture_output=True, timeout=30)
-        if push:
-            subprocess.run(["git", "-C", kb_repo, "push", "-q"], capture_output=True, timeout=60)
+    except Exception as e:
+        err = e.stderr.decode()[:120] if getattr(e, "stderr", None) else e
+        sys.stderr.write(f"[git: {err}]\n")
+        return "failed"
+    if not push:
         return "committed"
-    except subprocess.CalledProcessError as e:
-        sys.stderr.write(f"[git: {e.stderr.decode()[:120] if e.stderr else e}]\n")
-        return "uncommitted"
+    p = subprocess.run(["git", "-C", kb_repo, "push", "-q"], capture_output=True, timeout=60)
+    if p.returncode != 0:
+        err = p.stderr.decode() if p.stderr else str(p.returncode)
+        # remote URLs can embed tokens (https://<PAT>@github.com/...) — never echo them
+        sys.stderr.write(f"[git push: {re.sub(r'://[^@/]+@', '://***@', err)[:120]}]\n")
+        return "push_failed"
+    return "pushed"

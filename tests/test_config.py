@@ -1,4 +1,5 @@
-from scripts.config import env, load_config
+import pytest
+from scripts.config import env, load_config, validate
 
 
 def test_env_from_file(tmp_path):
@@ -16,3 +17,21 @@ def test_load_config_defaults():
     cfg = load_config()
     assert cfg["distill"]["engine"] == "openrouter"
     assert cfg["whisper"]["model"] in ("medium", "large-v3", "small")
+
+
+def test_validate_rejects_placeholder_kb_repo():
+    with pytest.raises(SystemExit):
+        validate({"kb_repo": "/path/to/your/knowledge-base"})
+
+
+def test_validate_rejects_missing_dir(tmp_path):
+    with pytest.raises(SystemExit):
+        validate({"kb_repo": str(tmp_path / "nope")})
+
+
+def test_validate_expands_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / "kb").mkdir()
+    cfg = {"kb_repo": "~/kb"}
+    assert validate(cfg) is cfg
+    assert cfg["kb_repo"] == str(tmp_path / "kb")

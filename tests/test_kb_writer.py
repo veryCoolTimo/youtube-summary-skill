@@ -39,6 +39,45 @@ def test_write_card_idempotent_path(tmp_path):
     assert len(lines) == 1
 
 
+def test_index_entry_returns_full_row(tmp_path):
+    kb = str(tmp_path)
+    kb_writer.upsert_index(kb, {"vid": "AAAAAAAAAAA", "file": "skills/x/y.md", "meta": META,
+                                "card": CARD, "url": "u", "date": "d", "top": "skills", "sub": "x"})
+    e = kb_writer.index_entry(kb, "AAAAAAAAAAA")
+    assert e["file"] == "skills/x/y.md" and e["card"]["tldr"] == "t"
+    assert kb_writer.index_entry(kb, "ZZZZZZZZZZZ") is None
+
+
+def _git_repo(tmp_path):
+    import subprocess
+    repo = tmp_path / "kbgit"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "commit.gpgsign", "false"], cwd=repo, check=True)
+    return repo
+
+
+def test_git_commit_reports_committed_without_push(tmp_path):
+    repo = _git_repo(tmp_path)
+    (repo / "f.md").write_text("x")
+    assert kb_writer.git_commit(str(repo), "m", push=False) == "committed"
+
+
+def test_git_commit_clean_when_no_changes(tmp_path):
+    repo = _git_repo(tmp_path)
+    (repo / "f.md").write_text("x")
+    kb_writer.git_commit(str(repo), "m", push=False)
+    assert kb_writer.git_commit(str(repo), "m", push=False) == "clean"
+
+
+def test_git_commit_reports_push_failure(tmp_path):
+    repo = _git_repo(tmp_path)
+    (repo / "f.md").write_text("x")
+    assert kb_writer.git_commit(str(repo), "m", push=True) == "push_failed"
+
+
 def test_reclassify_removes_orphan_file(tmp_path):
     kb = str(tmp_path)
     (Path(kb) / ".git").mkdir()

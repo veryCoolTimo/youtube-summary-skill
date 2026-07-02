@@ -1,7 +1,7 @@
-import argparse, json, sys
+import argparse, datetime as dt, json, sys
 from pathlib import Path
 from . import classify, kb_writer, vectorize, distill
-from .config import load_config, env
+from .config import load_config, env, validate
 
 
 def dedup_old(rows):
@@ -16,30 +16,12 @@ def dedup_old(rows):
     return list(by_vid.values())
 
 
-def _frames_for(kb_repo, vid, card):
-    """Rebuild (ts, why, path) from existing media files referenced by visual_moments."""
-    out = []
-    for vm in card.get("visual_moments", []):
-        ts = vm.get("ts")
-        if not isinstance(ts, (int, float)):
-            continue
-        for base in (Path(kb_repo) / "media" / vid, Path(kb_repo) / "youtube" / "media" / vid):
-            p = base / f"{int(ts)}.jpg"
-            if p.exists():
-                out.append((int(ts), vm.get("why", ""), str(p)))
-                break
-    return out
-
-
 def migrate(cfg, key, old_index_path, today):
     kb = cfg["kb_repo"]
     rows = [json.loads(l) for l in Path(old_index_path).read_text(encoding="utf-8").splitlines() if l.strip()]
     rows = dedup_old(rows)
     tax = classify.load_taxonomy(kb)
-
-    def _llm(prompt):
-        _, raw = distill.openrouter_chat_fallback(cfg["distill"]["openrouter_models"], [{"role": "user", "content": prompt}], key)
-        return raw
+    llm = distill.classify_chat_fn(cfg, key)
 
     res = {"migrated": 0, "skipped": 0, "by_folder": {}}
     for r in rows:
@@ -49,10 +31,10 @@ def migrate(cfg, key, old_index_path, today):
             res["skipped"] += 1
             continue
         try:
-            top, sub = classify.classify(card, meta, tax, None, _llm)
+            top, sub = classify.classify(card, meta, tax, None, llm)
         except Exception:
-            top, sub = "random", "_inbox"
-        frames = _frames_for(kb, vid, card)
+            top, sub = classify.fallback(tax)
+        frames = kb_writer.existing_frames(kb, vid, card)
         date = (r.get("date") or today)
         kb_writer.write_card(kb, meta, card, url, vid, top, sub, frames, date)
         try:
@@ -68,9 +50,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--old-index", required=True, help="path to the old flat cards.jsonl to migrate")
     ap.add_argument("--config")
-    ap.add_argument("--today", default="2026-06-23")
+    ap.add_argument("--today", default=dt.date.today().isoformat())
     a = ap.parse_args()
-    cfg = load_config(a.config)
+    cfg = validate(load_config(a.config))
     key = env("OPENROUTER_API_KEY", cfg.get("env_file"))
     print(json.dumps(migrate(cfg, key, a.old_index, a.today), ensure_ascii=False, indent=2))
 

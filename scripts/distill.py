@@ -2,7 +2,7 @@ import json, re, sys, urllib.request
 
 OR_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-DISTILL_SYS_PROMPT = (
+DISTILL_SYS_BASE = (
     "Ты делаешь выжимку YouTube-видео для занятого разработчика (рус/англ контент). "
     "Дан транскрипт, числа в [скобках] — секунды от начала. "
     "Верни СТРОГО валидный JSON без markdown-обёртки по схеме:\n"
@@ -17,8 +17,17 @@ DISTILL_SYS_PROMPT = (
     "для инструментов: что делает -> где нужно -> нюансы/плюсы автора; "
     "для опыт/стартап-роликов: что испытал автор, сложности, что важное запомнить; "
     "3-6 takeaways с реальными ts; applicable 0-4; visual_moments 0-3 только где явно показывают экран/демо/код; "
-    "не выдумывай, бери только из транскрипта; пиши по-русски."
+    "не выдумывай, бери только из транскрипта; "
 )
+
+RETRY_PROMPT = ("Предыдущий ответ не распарсился как JSON. "
+                "Верни СТРОГО валидный JSON по схеме, без markdown и пояснений.")
+
+
+def sys_prompt(lang: str = "ru") -> str:
+    lang = str(lang)  # YAML 1.1 parses unquoted `no` (Norwegian) as False
+    tail = "пиши по-русски." if lang == "ru" else f"write all card text in this language: {lang}."
+    return DISTILL_SYS_BASE + tail
 
 
 def build_user_prompt(meta: dict, segs: list) -> str:
@@ -63,8 +72,32 @@ def _ollama_chat(model, messages, timeout=600) -> str:
         return json.loads(r.read().decode())["message"]["content"]
 
 
+def classify_chat_fn(cfg, key):
+    """One-off chat callable for classification, routed through the configured engine.
+    Returns None for engine=self — the agent already put "category" into the card."""
+    eng = cfg["distill"]["engine"]
+    if eng == "self":
+        return None
+    if eng == "local":
+        return lambda p: _ollama_chat(cfg["distill"]["local_model"], [{"role": "user", "content": p}])
+    return lambda p: openrouter_chat_fallback(cfg["distill"]["openrouter_models"],
+                                              [{"role": "user", "content": p}], key)[1]
+
+
+def _chat_card(chat, msgs) -> dict:
+    """Parse the model reply into a card; on invalid JSON, ask once more."""
+    raw = chat(msgs)
+    try:
+        return parse_card(raw)
+    except Exception:
+        retry = msgs + [{"role": "assistant", "content": raw},
+                        {"role": "user", "content": RETRY_PROMPT}]
+        return parse_card(chat(retry))
+
+
 def distill(meta: dict, segs: list, cfg: dict, key: str, self_fn=None) -> dict:
-    sys_p, usr_p = DISTILL_SYS_PROMPT, build_user_prompt(meta, segs)
+    lang = cfg["distill"].get("language", "ru")
+    sys_p, usr_p = sys_prompt(lang), build_user_prompt(meta, segs)
     msgs = [{"role": "system", "content": sys_p}, {"role": "user", "content": usr_p}]
     engine = cfg["distill"]["engine"]
     if engine == "self":
@@ -74,10 +107,15 @@ def distill(meta: dict, segs: list, cfg: dict, key: str, self_fn=None) -> dict:
         card["_engine"] = "self"
         return card
     if engine == "local":
-        card = parse_card(_ollama_chat(cfg["distill"]["local_model"], msgs))
+        card = _chat_card(lambda m: _ollama_chat(cfg["distill"]["local_model"], m), msgs)
         card["_engine"] = "local:" + cfg["distill"]["local_model"]
         return card
-    model, raw = openrouter_chat_fallback(cfg["distill"]["openrouter_models"], msgs, key)
-    card = parse_card(raw)
-    card["_engine"] = "openrouter:" + model
+    used = {}
+
+    def _chat(m):
+        used["model"], raw = openrouter_chat_fallback(cfg["distill"]["openrouter_models"], m, key)
+        return raw
+
+    card = _chat_card(_chat, msgs)
+    card["_engine"] = "openrouter:" + used["model"]
     return card

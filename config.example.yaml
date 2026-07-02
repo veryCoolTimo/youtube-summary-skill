@@ -6,6 +6,9 @@ distill:
     - qwen/qwen3-next-80b-a3b-instruct:free
     - qwen/qwen3-30b-a3b-instruct-2507
   local_model: gpt-oss-20b      # via ollama, used when engine=local
+  language: "ru"                # language the cards are written in (keep quoted: bare no/off break YAML)
+captions:
+  languages: ["ru", "en"]       # caption language preference order
 whisper:
   model: medium                 # medium | large-v3 | small
   compute_type: int8

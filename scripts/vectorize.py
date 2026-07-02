@@ -31,6 +31,17 @@ def _collection(cfg):
     return client.get_or_create_collection("youtube", metadata={"hnsw:space": "cosine"})
 
 
+def reset(cfg) -> bool:
+    """Drop the whole collection (used by reindex to remove stale embeddings)."""
+    try:
+        import chromadb
+        path = os.path.expanduser(cfg["vector"]["path"])
+        chromadb.PersistentClient(path=path).delete_collection("youtube")
+        return True
+    except Exception:
+        return False
+
+
 def index_card(cfg, meta, card, vid) -> bool:
     if not cfg.get("vector", {}).get("enabled"):
         return False
