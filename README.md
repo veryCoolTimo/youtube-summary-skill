@@ -17,6 +17,15 @@ The mechanical pipeline is deterministic (plain Python scripts). The agent only 
 
 ## Install
 
+**Claude Code, plugin marketplace** (gets you the skill; the Python environment below is still required for the pipeline):
+
+```
+/plugin marketplace add veryCoolTimo/youtube-summary-skill
+/plugin install youtube-summary@youtube-summary
+```
+
+**Manual (recommended — sets up everything):**
+
 **Prerequisites:** Python 3.11+, `ffmpeg`, and Node.js on `PATH` (yt-dlp uses it to solve YouTube's JS challenges). For the default distill engine you need an [OpenRouter](https://openrouter.ai/) API key; for the fully local engine, a running [ollama](https://ollama.com/).
 
 ```bash

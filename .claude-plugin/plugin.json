@@ -1,0 +1,10 @@
+{
+  "name": "youtube-summary",
+  "description": "Turn YouTube links into a searchable knowledge base: captions or local Whisper, LLM-distilled summary cards with timecoded links and screenshots, topical auto-filing, hybrid RAG search, optional git sync.",
+  "version": "1.0.0",
+  "author": { "name": "veryCoolTimo", "email": "tima.bulaev@gmail.com" },
+  "homepage": "https://github.com/veryCoolTimo/youtube-summary-skill",
+  "repository": "https://github.com/veryCoolTimo/youtube-summary-skill",
+  "license": "MIT",
+  "keywords": ["skills", "youtube", "knowledge-base", "rag", "whisper", "summarization"]
+}

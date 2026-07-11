@@ -1,0 +1,16 @@
+{
+  "name": "youtube-summary",
+  "description": "Marketplace for youtube-summary: YouTube links into a searchable knowledge base for Claude Code",
+  "owner": { "name": "veryCoolTimo", "email": "tima.bulaev@gmail.com" },
+  "plugins": [
+    {
+      "name": "youtube-summary",
+      "description": "Turn YouTube links into a searchable, timecoded knowledge base with local Whisper fallback and hybrid RAG search.",
+      "version": "1.0.0",
+      "source": "./",
+      "strict": false,
+      "skills": ["./"],
+      "author": { "name": "veryCoolTimo", "email": "tima.bulaev@gmail.com" }
+    }
+  ]
+}
